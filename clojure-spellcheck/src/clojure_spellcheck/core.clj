@@ -6,8 +6,8 @@
 (defn- words [text] (re-seq #"[a-z]+" (.toLowerCase text)))
 
 (defn- train [features]
-  (reduce (fn [model f] 
-            (assoc model f (inc (get model f 1)))) {} features))
+  (reduce (fn [model f]
+            (update-in model [f] (fnil inc 0) {} features))
 
 (def NWORDS (train (words (slurp "big.txt"))))
 
@@ -35,19 +35,19 @@
     (str (subs word 0 i) (nth word (inc i)) 
          (nth word i) (subs word (inc (inc i))))))
 
-(defn edits1 [word]
+(defn edits1* [word]
   "Returns a seq of all strings a distance of 1 from word"
   (let [w word]
     (distinct (concat (deletes w) (replaces w) 
                       (inserts w) (transposes w)))))
 
-(defn known [edits]
+(defn known* [edits]
   "Returns a seq of all words known (as defined by NWORDS)"
-  (seq (filter #(NWORDS %) edits)))
+  (filter NWORDS edits))
 
 ; Memoization should dramatically increase the speed...
-(def edits1 (memoize edits1))
-(def known (memoize known))
+(def edits1 (memoize edits1*))
+(def known (memoize known*))
 
 (defn correct [word]
   "Here we estimate P(w|c): a known word of edit length 0 is infinitely
@@ -57,4 +57,4 @@
                        (known (edits1 word)) 
                        (known (map edits1 (known (edits1 word))))
                        [word])]
-    (apply max-key #(NWORDS %) candidates)))
+    (apply max-key NWORDS candidates)))
